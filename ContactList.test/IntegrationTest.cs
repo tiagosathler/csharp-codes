@@ -1,9 +1,11 @@
 namespace ContactList.test;
 
+using AutoBogus;
 using ContactList.Models;
 using ContactList.Services;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+
 using Moq;
 using Newtonsoft.Json;
 using System.Net;
@@ -12,17 +14,15 @@ using System.Text;
 
 public class IntegrationTest : IClassFixture<WebApplicationFactory<Program>>
 {
-    private readonly WebApplicationFactory<Program> _webApplicationFactory;
     private readonly HttpClient _httpClient;
     private readonly Mock<IContactService> _mockService;
     private const string URI = "/person";
 
     public IntegrationTest(WebApplicationFactory<Program> webApplicationFactory)
     {
-        _webApplicationFactory = webApplicationFactory;
         _mockService = new();
 
-        _httpClient = _webApplicationFactory
+        _httpClient = webApplicationFactory
             .WithWebHostBuilder(builder =>
             {
                 _ = builder.ConfigureServices(services =>
@@ -45,10 +45,8 @@ public class IntegrationTest : IClassFixture<WebApplicationFactory<Program>>
     public async Task TestGetPeople(string uri)
     {
         // arrange
-        Person[] peopleMoq = new Person[2];
-        peopleMoq[0] = new Person { PersonId = 1, PersonName = "Maria", PersonEmail = "maria@betrybe.com", PersonPhone = "5511999999999" };
-        peopleMoq[1] = new Person { PersonId = 2, PersonName = "João", PersonEmail = "joao@betrybe.com", PersonPhone = "5511988888888" };
-        _mockService.Setup(s => s.getPersonList()).Returns(peopleMoq);
+        Person[] peopleFake = AutoFaker.Generate<Person>(3).ToArray();
+        _mockService.Setup(s => s.getPersonList()).Returns(peopleFake);
 
         // act
         HttpResponseMessage httpResponseMessage = await _httpClient.GetAsync(uri);
@@ -58,8 +56,8 @@ public class IntegrationTest : IClassFixture<WebApplicationFactory<Program>>
         // asserts
         Assert.NotNull(peopleResponse);
         Assert.Equal(HttpStatusCode.OK, httpResponseMessage.StatusCode);
-        Assert.Equal(peopleMoq.Length, peopleResponse.Length);
-        Assert.Equivalent(peopleMoq, peopleResponse, true);
+        Assert.Equal(peopleFake.Length, peopleResponse.Length);
+        Assert.Equivalent(peopleFake, peopleResponse, true);
     }
 
     [Theory(DisplayName = "Testando a rota /POST Person")]
@@ -67,7 +65,7 @@ public class IntegrationTest : IClassFixture<WebApplicationFactory<Program>>
     public async Task TestPostPerson(string uri)
     {
         // arrange
-        Person personMoq = new() { PersonId = 3, PersonName = "Rebeca", PersonEmail = "Rebeca@betrybe.com", PersonPhone = "5511977777777" };
+        Person personMoq = AutoFaker.Generate<Person>();
         object inputOjb = new { personMoq.PersonName, personMoq.PersonEmail, personMoq.PersonPhone };
         HttpContent requestBody = new StringContent(JsonConvert.SerializeObject(inputOjb), Encoding.UTF8, MediaTypeNames.Application.Json);
         _mockService.Setup(s => s.addPerson(It.IsAny<Person>())).Returns(personMoq);
