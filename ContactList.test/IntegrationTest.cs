@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Newtonsoft.Json;
 using System.Net;
+using System.Net.Mime;
+using System.Text;
 
 public class IntegrationTest : IClassFixture<WebApplicationFactory<Program>>
 {
@@ -58,5 +60,26 @@ public class IntegrationTest : IClassFixture<WebApplicationFactory<Program>>
         Assert.Equal(HttpStatusCode.OK, httpResponseMessage.StatusCode);
         Assert.Equal(peopleMoq.Length, peopleResponse.Length);
         Assert.Equivalent(peopleMoq, peopleResponse, true);
+    }
+
+    [Theory(DisplayName = "Testando a rota /POST Person")]
+    [InlineData(URI)]
+    public async Task TestPostPerson(string uri)
+    {
+        // arrange
+        Person personMoq = new() { PersonId = 3, PersonName = "Rebeca", PersonEmail = "Rebeca@betrybe.com", PersonPhone = "5511977777777" };
+        object inputOjb = new { personMoq.PersonName, personMoq.PersonEmail, personMoq.PersonPhone };
+        HttpContent requestBody = new StringContent(JsonConvert.SerializeObject(inputOjb), Encoding.UTF8, MediaTypeNames.Application.Json);
+        _mockService.Setup(s => s.addPerson(It.IsAny<Person>())).Returns(personMoq);
+
+        // act
+        HttpResponseMessage httpResponseMessage = await _httpClient.PostAsync(uri, requestBody);
+        string responseMessage = await httpResponseMessage.Content.ReadAsStringAsync();
+        Person? personResponse = JsonConvert.DeserializeObject<Person>(responseMessage);
+
+        // asserts
+        Assert.NotNull(personResponse);
+        Assert.Equal(HttpStatusCode.Created, httpResponseMessage.StatusCode);
+        Assert.Equivalent(personMoq, personResponse, true);
     }
 }
